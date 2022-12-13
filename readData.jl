@@ -24,6 +24,7 @@ function readData(path::String)::Data
                 zeros(Int, n), zeros(Int, (n, n)))
     data.nbSt = n
     currentIdx += 2
+    # First n lines are travel times 
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
@@ -35,12 +36,13 @@ function readData(path::String)::Data
     end
 
     currentIdx += 1
-
+    # Then one line of intensity of arrival in each station
     line = lines[currentIdx]
     splittedLine = split(line, ',')
     data.lambdas = [parse(Float64, x) for x in splittedLine]
     currentIdx += 2
 
+    # Then n lines of our routing matrix
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
@@ -50,11 +52,13 @@ function readData(path::String)::Data
 
     currentIdx += 1
 
+    # Then one line of the initial state (number of bikes) of each station
     line = lines[currentIdx]
     splittedLine = split(line, ',')
     data.initialParked = [parse(Int, x) for x in splittedLine]
     currentIdx += 2
 
+    # And finally n lines of the matrix of the initially moving bikes
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
