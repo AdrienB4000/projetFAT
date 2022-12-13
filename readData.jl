@@ -1,15 +1,16 @@
 # here we put our code to read the xlsx file given for the project
 
 mutable struct Data
+    nbSt::Int
     travelTime::Matrix{Int}
     lambdas::Vector{Float64}
     routage::Matrix{Float64}
     initialParked::Vector{Int}
     initialTransit::Matrix{Int}
 
-    function Data(travel::Matrix{Int}, lambdas::Vector{Float64}, routage::Matrix{Float64},
-                  initialParked::Vector{Int}, initialTransit::Matrix{Int})
-        return new(travel, lambdas, routage, initialParked, initialTransit)
+    function Data(n::Int, travel::Matrix{Int}, lambdas::Vector{Float64},
+                  routage::Matrix{Float64}, initialParked::Vector{Int}, initialTransit::Matrix{Int})
+        return new(n, travel, lambdas, routage, initialParked, initialTransit)
     end
 end
 
@@ -18,9 +19,10 @@ function readData(path::String)::Data
     lines = readlines(f);
     currentIdx = 1
     n = parse(Int, lines[currentIdx][1])
-    currentIdx += 2
-    data = Data(zeros(Int, (n, n)), zeros(Float64, n), zeros(Float64, (n, n)),
+    data = Data(0, zeros(Int, (n, n)), zeros(Float64, n), zeros(Float64, (n, n)),
                 zeros(Int, n), zeros(Int, (n, n)))
+    data.nbSt = n
+    currentIdx += 2
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
