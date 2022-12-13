@@ -28,7 +28,7 @@ function departureFromStation(event::Event, state::State, pq::PriorityQueue{Even
     # We select the destination j with the routage Matrix
     # Then we change the state and create the next events
     if state.parkedBicycles[event.i] > 0
-        j = sample([jP for jP in 1:data.nbSt], Weights(data.routage[event.i, :]))
+        j = sample(data.allSt, Weights(data.routage[event.i, :]))
         takeOneFromIToJ(state, event.i, j)
         arrivalTime = event.endingTime + transitLaw(data.travelTime[event.i, j])
         arrivalEvent = Event(arrivalTime, event.i, j, arrivalAtStation, arrivalOutput)
@@ -73,17 +73,27 @@ function initQueue(data::Data)::PriorityQueue{Event, Float64}
     return events
 end
 
-function main(maxTime::Int)
+function main(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}}
     data = readData("data.txt")
     state = initState(data)
     events = initQueue(data)
-    println(state)
-    println(events)
+    nbEvents = 0
+    currentTime = 0
+    meanParkedBicycles = [0. for _ in 1:data.nbSt]
+    meanTransitBicycles = zeros(Float64, (data.nbSt, data.nbSt))
     while length(events) > 0
         ev = dequeue!(events)
-        if ev.endingTime >= maxTime
+        nextTime = min(ev.endingTime, maxTime)
+        meanParkedBicycles = meanParkedBicycles + (nextTime - currentTime) * state.parkedBicycles
+        meanTransitBicycles = meanTransitBicycles + (nextTime - currentTime) * state.transitBicycles
+        currentTime = ev.endingTime
+        nbEvents += 1
+        if currentTime >= maxTime
             break
         end
         ev.endAction(ev, state, events, data)
     end
+    println("Simulation ran for " * string(maxTime) * " hours")
+    println(nbEvents, " events dequeued")
+    return meanParkedBicycles / maxTime, meanTransitBicycles / maxTime
 end

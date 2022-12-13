@@ -2,7 +2,8 @@
 
 mutable struct Data
     nbSt::Int
-    travelTime::Matrix{Int}
+    allSt::Vector{Int}
+    travelTime::Matrix{Float64}
     lambdas::Vector{Float64}
     routage::Matrix{Float64}
     initialParked::Vector{Int}
@@ -10,7 +11,7 @@ mutable struct Data
 
     function Data(n::Int, travel::Matrix{Int}, lambdas::Vector{Float64},
                   routage::Matrix{Float64}, initialParked::Vector{Int}, initialTransit::Matrix{Int})
-        return new(n, travel, lambdas, routage, initialParked, initialTransit)
+        return new(n, [i for i in 1:n], travel, lambdas, routage, initialParked, initialTransit)
     end
 end
 
@@ -26,7 +27,10 @@ function readData(path::String)::Data
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
-        data.travelTime[i, :] = [parse(Int, x) for x in splittedLine]
+        # travel Times are given in minutes
+        # And lambdas in minutes-1
+        # We take hours so divide travel times by 60
+        data.travelTime[i, :] = [parse(Int, x)/60 for x in splittedLine]
         currentIdx += 1
     end
 
