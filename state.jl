@@ -14,6 +14,7 @@ function initState(data::Data)::State
 end
 
 function takeOneFromIToJ(state::State, i::Int, j::Int)
+    # TODO add throw ?
     if i == j
         println("Problem : can't go from i to i")
     end
@@ -22,6 +23,7 @@ function takeOneFromIToJ(state::State, i::Int, j::Int)
 end
 
 function arriveFromIAtJ(state::State, i::Int, j::Int)
+    # TODO add throw ?
     if i == j
         println("Problem : can't go from i to i")
     end
@@ -29,10 +31,10 @@ function arriveFromIAtJ(state::State, i::Int, j::Int)
     state.transitBicycles[i, j] -= 1
 end
 
-function nbParkedAtI(state::State, i::Int)
+function nbParkedAtI(state::State, i::Int)::Int
     return state.parkedBicycles[i]
 end
 
-function nbTransitsFromIToJ(state::State, i::Int, j::Int)
+function nbTransitsFromIToJ(state::State, i::Int, j::Int)::Int
     return state.transitBicycles[i, j]
 end
