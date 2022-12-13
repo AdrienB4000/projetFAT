@@ -97,8 +97,10 @@ function simulate(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}, Vector{
         meanTransitBicycles = meanTransitBicycles + (nextTime - currentTime) * state.transitBicycles
         # Store the amount of time where the station remained empty.
 
-        if state.parkedBicycles[ev.i] == 0 && ev.j > 0
-            stationEmptinessTime[ev.i] += ev.endingTime - currentTime
+        for st in 1:data.nbSt
+            if state.parkedBicycles[st] == 0
+                stationEmptinessTime[st] += nextTime - currentTime
+            end
         end
 
         currentTime = ev.endingTime
