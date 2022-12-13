@@ -73,7 +73,7 @@ function initQueue(data::Data)::PriorityQueue{Event, Float64}
     return events
 end
 
-function main(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}}
+function simulate(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}}
     data = readData("data.txt")
     state = initState(data)
     events = initQueue(data)

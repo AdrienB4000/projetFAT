@@ -12,7 +12,7 @@ function nExponentialLaw(n::Int, lambda::Float64)::Vector{Float64}
     return [-1/lambda * log(u) for u in unif]
 end
 
-function transitLaw(transitTime::Int)::Float64
+function transitLaw(meanTransitTime::Float64)::Float64
     # To change if we consider a exponential, uniform...
-    return transitTime
+    return exponentialLaw(1/meanTransitTime)
 end

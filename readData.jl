@@ -20,11 +20,10 @@ function readData(path::String)::Data
     lines = readlines(f);
     currentIdx = 1
     n = parse(Int, lines[currentIdx][1])
-    data = Data(0, zeros(Int, (n, n)), zeros(Float64, n), zeros(Float64, (n, n)),
+    data = Data(n, zeros(Int, (n, n)), zeros(Float64, n), zeros(Float64, (n, n)),
                 zeros(Int, n), zeros(Int, (n, n)))
-    data.nbSt = n
     currentIdx += 2
-    # First n lines are travel times 
+    # First n lines are travel times
     for i in 1:n
         line = lines[currentIdx]
         splittedLine = split(line, ',')
