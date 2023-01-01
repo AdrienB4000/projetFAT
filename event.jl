@@ -24,7 +24,11 @@ function departureOutput(io::IO, event::Event)
     println(" at time " * string(event.endingTime))
 end
 
-function departureFromStation(event::Event, state::State, pq::PriorityQueue{Event, Float64}, data::Data)
+function endingTime(event::Event)
+    return event.endingTime
+end
+
+function departureFromStation(event::Event, state::State, pq::AbstractHeap, data::Data)
     # We select the destination j with the routage Matrix
     # Then we change the state and create the next events
     if state.parkedBicycles[event.i] > 0
@@ -32,12 +36,12 @@ function departureFromStation(event::Event, state::State, pq::PriorityQueue{Even
         takeOneFromIToJ(state, event.i, j)
         arrivalTime = event.endingTime + transitLaw(data.travelTime[event.i, j])
         arrivalEvent = Event(arrivalTime, event.i, j, arrivalAtStation, arrivalOutput)
-        enqueue!(pq, arrivalEvent, arrivalTime)
+        push!(pq, arrivalEvent)
     end
 
     nextDepartureTime = event.endingTime + exponentialLaw(data.lambdas[event.i])
     nextDepartureEvent = Event(nextDepartureTime, event.i, -1, departureFromStation, departureOutput)
-    enqueue!(pq, nextDepartureEvent, nextDepartureTime)
+    push!(pq, nextDepartureEvent)
 end
 
 function arrivalOutput(io::IO, event::Event)
@@ -46,17 +50,17 @@ function arrivalOutput(io::IO, event::Event)
     println(" at time " * string(event.endingTime))
 end
 
-function arrivalAtStation(event::Event, state::State, pq::PriorityQueue{Event, Float64}, data::Data)
+function arrivalAtStation(event::Event, state::State, pq::AbstractHeap, data::Data)
     arriveFromIAtJ(state, event.i, event.j)
 end
 
-function initQueue(data::Data)::PriorityQueue{Event, Float64}
-    events = PriorityQueue{Event, Float64}()
+function initQueue(data::Data)::AbstractHeap
+    events = BinaryHeap(Base.By(endingTime), Event[])
     # First we create the events linked to the next departures from each station
     for i in 1:data.nbSt
         finishingTime = exponentialLaw(data.lambdas[i])
         departEvent = Event(finishingTime, i, -1, departureFromStation, departureOutput)
-        enqueue!(events, departEvent, finishingTime)
+        push!(events, departEvent)
     end
 
     # Then we create the events linked to the next arrivals at each station
@@ -66,7 +70,7 @@ function initQueue(data::Data)::PriorityQueue{Event, Float64}
             for _ in 1:nbTransiting
                 finishingTime = transitLaw(data.travelTime[i, j])
                 arrivalEvent = Event(finishingTime, i, j, arrivalAtStation, arrivalOutput)
-                enqueue!(events, arrivalEvent, finishingTime)
+                push!(events, arrivalEvent)
             end
         end
     end
@@ -91,7 +95,7 @@ function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}
     stationEmptinessTime = [0. for _ in 1:data.nbSt]
 
     while length(events) > 0
-        ev = dequeue!(events)
+        ev = pop!(events)
         nextTime = min(ev.endingTime, maxTime)
         meanParkedBicycles = meanParkedBicycles + (nextTime - currentTime) * state.parkedBicycles
         meanTransitBicycles = meanTransitBicycles + (nextTime - currentTime) * state.transitBicycles
@@ -129,7 +133,7 @@ function simulate(maxTime::Int)::Vector{Float64}
     stationEmptinessTime = [0. for _ in 1:data.nbSt]
 
     while length(events) > 0
-        ev = dequeue!(events)
+        ev = pop!(events)
         nextTime = min(ev.endingTime, maxTime)
         # Store the amount of time where the station remained empty.
         for st in 1:data.nbSt
