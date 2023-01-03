@@ -77,7 +77,7 @@ function initQueue(data::Data)::AbstractHeap
     return events
 end
 
-function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}, Vector{Float64}}
+function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}, Vector{Float64}, Float64}
     """
     Returns:
         - mean parked bicycles by station over time
@@ -85,7 +85,7 @@ function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    data = readData("data.txt")
+    data = readData("data_50uniform.txt")
     state = initState(data)
     events = initQueue(data)
     nbEvents = 0
@@ -93,6 +93,7 @@ function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}
     meanParkedBicycles = [0. for _ in 1:data.nbSt]
     meanTransitBicycles = zeros(Float64, (data.nbSt, data.nbSt))
     stationEmptinessTime = [0. for _ in 1:data.nbSt]
+    wholeEmptyTime = 0
 
     while length(events) > 0
         ev = pop!(events)
@@ -101,10 +102,16 @@ function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}
         meanTransitBicycles = meanTransitBicycles + (nextTime - currentTime) * state.transitBicycles
         # Store the amount of time where the station remained empty.
 
+        allEmpty = true
         for st in 1:data.nbSt
             if state.parkedBicycles[st] == 0
                 stationEmptinessTime[st] += nextTime - currentTime
+            else
+                allEmpty = false
             end
+        end
+        if allEmpty
+            wholeEmptyTime += nextTime - currentTime
         end
 
         currentTime = ev.endingTime
@@ -116,7 +123,7 @@ function simulateWithMeans(maxTime::Int)::Tuple{Vector{Float64}, Matrix{Float64}
     end
     println("Simulation ran for " * string(maxTime) * " hours")
     println(nbEvents, " events dequeued")
-    return meanParkedBicycles / maxTime, meanTransitBicycles / maxTime, stationEmptinessTime / maxTime
+    return meanParkedBicycles / maxTime, meanTransitBicycles / maxTime, stationEmptinessTime / maxTime, wholeEmptyTime / maxTime
 end
 
 function simulate(maxTime::Int)::Vector{Float64}
@@ -125,7 +132,7 @@ function simulate(maxTime::Int)::Vector{Float64}
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    data = readData("data.txt")
+    data = readData("data_50uniform.txt")
     state = initState(data)
     events = initQueue(data)
     nbEvents = 0
@@ -149,7 +156,30 @@ function simulate(maxTime::Int)::Vector{Float64}
         end
         ev.endAction(ev, state, events, data)
     end
-    println("Simulation ran for " * string(maxTime) * " hours")
-    println(nbEvents, " events dequeued")
+    # println("Simulation ran for " * string(maxTime) * " hours")
+    # println(nbEvents, " events dequeued")
     return stationEmptinessTime / maxTime
+end
+
+function calculateEmptinessSd()::Tuple{Vector{Int}, Vector{Float64}}
+    maxTimesToTest = [150, 1500, 5000, 15000, 30000, 50000]
+    maxRelativeSd = []
+    for maxTime in maxTimesToTest
+        println("Processing " * string(maxTime))
+        nbSamples = 50
+        emptinessResults = Vector{Float64}[]
+        for j in 1:nbSamples
+            push!(emptinessResults, simulate(maxTime));
+        end
+        meanEmptiness = sum(emptinessResults) / length(emptinessResults)
+        varianceByStation = [0 for i in 1:length(meanEmptiness)]
+        for j in 1:nbSamples
+            varianceByStation += (emptinessResults[j] - meanEmptiness) .* (emptinessResults[j] - meanEmptiness)
+        end
+        varianceByStation = 1/nbSamples * varianceByStation
+        sdByStation = [sqrt(v) for v in varianceByStation]
+        relativeSdByStation = [sdByStation[s]/meanEmptiness[s] for s in 1:length(varianceByStation)]
+        push!(maxRelativeSd, maximum(relativeSdByStation))
+    end
+    return maxTimesToTest, maxRelativeSd
 end
