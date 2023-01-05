@@ -1,6 +1,17 @@
 include("readData.jl")
 include("state.jl")
 include("randomVars.jl")
+using StatsBase
+
+function route_colony_from_source_and_dest(source::Int, destination::Int)::Int
+    first_route = 6 + 4 * (source- 1)
+    if source < destination
+        route_colony = first_route + destination - 2
+    else
+        route_colony = first_route + destination - 1
+    end
+    return route_colony
+end
 
 function simulateMarkov(maxTime::Int)::Vector{Float64}
     """
@@ -8,7 +19,8 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    data = readData("data_50uniform.txt")
+    #data = readData("data_50uniform.txt")
+    data = readData("data_1.txt")
     state = initState(data)
     events = vcat([i for i in 1:data.nbSt], [(i, j) for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
     
@@ -33,7 +45,6 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
     end
 
     lambdasSum = sum(lambdas)
-    eventsProbability= [lambda/lambdasSum for lambda in lambdas]
 
     currentTime = 0
     nextTime = min(exponentialLaw(lambdasSum), maxTime)
@@ -42,6 +53,7 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
     nbEventsProcessed = 0
     while nextTime < maxTime
         nbEventsProcessed += 1
+
         # Store the amount of time where the station remained empty.
         for st in 1:data.nbSt
             if state.parkedBicycles[st] == 0
@@ -49,43 +61,45 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
             end
         end
 
-        event = sample(events, Weights(eventsFrequency))
+        event = sample(events, Weights(lambdas))
         if typeof(event) == Int64
             # Here the event is that a customer arrives at a station
             j = sample(data.allSt, Weights(data.routage[event, :]))
             takeOneFromIToJ(state, event, j)
-            # If last customer, event becomes impossible
+
+            source = event
+            destination = j
+            route_colony = route_colony_from_source_and_dest(source, destination)
+            # Update lambda for the route
+            lambdas[route_colony] += unitaryLambdas[route_colony]
+            lambdasSum += unitaryLambdas[route_colony]
+
+            # If last customer of station, event becomes impossible
             if state.parkedBicycles[event] == 0
                 lambdasSum -= unitaryLambdas[event]
                 lambdas[event] = 0
-                eventsProbability= [lambda/lambdasSum for lambda in lambdas]
             end
+
         elseif typeof(event) == Tuple{Int64, Int64}
             # Here the event is that a customer finishes is travel from i to j
             source = event[1]
             destination = event[2]
             # First route from the source
-            first_route = 6 + 4 * (j- 1)
-            if source < destination
-                route_number = first_route + destination - 1
-            else
-                route_number = first_route + destination
-            end
+            route_colony = route_colony_from_source_and_dest(source, destination)
             arriveFromIAtJ(state, event[1], event[2])
-            # Reduce lambda
-            lambdas[route_number] -= unitaryLambdas[route_number]
-            lambdasSum -= unitaryLambdas[route_number]
+            # Reduce lambda for route
+            lambdas[route_colony] -= unitaryLambdas[route_colony]
+            lambdasSum -= unitaryLambdas[route_colony]
+
             # If station was empty but isn't anymore
             if state.parkedBicycles[destination] ==1
                 lambdasSum += unitaryLambdas[destination]
-                lambdas[destination] = unitaryLambdas
+                lambdas[destination] = unitaryLambdas[destination]
             end
-
-            # Update event proba
-            eventsProbability= [lambda/lambdasSum for lambda in lambdas]
         else
             println("Big problem here")
         end
+
         currentTime = nextTime
         nextTime = min(currentTime + exponentialLaw(lambdasSum), maxTime)
     end
@@ -100,4 +114,4 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
     return stationEmptinessTime / maxTime
 end
 
-simulateMarkov(10)
+println(simulateMarkov(150))
