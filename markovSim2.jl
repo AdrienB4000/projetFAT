@@ -64,11 +64,10 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
         event = sample(events, Weights(lambdas))
         if typeof(event) == Int64
             # Here the event is that a customer arrives at a station
-            j = sample(data.allSt, Weights(data.routage[event, :]))
-            takeOneFromIToJ(state, event, j)
-
             source = event
-            destination = j
+            destination = sample(data.allSt, Weights(data.routage[event, :]))
+            takeOneFromIToJ(state, source, destination)
+
             route_colony = route_colony_from_source_and_dest(source, destination)
             # Update lambda for the route
             lambdas[route_colony] += unitaryLambdas[route_colony]
@@ -86,7 +85,7 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
             destination = event[2]
             # First route from the source
             route_colony = route_colony_from_source_and_dest(source, destination)
-            arriveFromIAtJ(state, event[1], event[2])
+            arriveFromIAtJ(state, source, destination)
             # Reduce lambda for route
             lambdas[route_colony] -= unitaryLambdas[route_colony]
             lambdasSum -= unitaryLambdas[route_colony]
@@ -113,5 +112,8 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
     println(nbEventsProcessed, " events processed")
     return stationEmptinessTime / maxTime
 end
+
+using Profile
+#@profile simulateMarkov(150)
 
 println(simulateMarkov(150))
