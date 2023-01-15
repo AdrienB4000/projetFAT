@@ -13,14 +13,14 @@ function route_colony_from_source_and_dest(source::Int, destination::Int)::Int
     return route_colony
 end
 
-function simulateMarkov(maxTime::Int)::Vector{Float64}
+function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
     """
     Returns:
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    #data = readData("data_50uniform.txt")
-    data = readData("data_1.txt")
+    data = readData("data_50uniform.txt")
+    #data = readData("data_1.txt")
     state = initState(data)
     events = vcat([i for i in 1:data.nbSt], [(i, j) for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
     
@@ -108,12 +108,59 @@ function simulateMarkov(maxTime::Int)::Vector{Float64}
             stationEmptinessTime[st] += maxTime - currentTime
         end
     end
-    println("Simulation ran for " * string(maxTime) * " hours")
-    println(nbEventsProcessed, " events processed")
+
+    if verbose
+        println("Simulation ran for " * string(maxTime) * " hours")
+        println(nbEventsProcessed, " events processed")
+    end
+
     return stationEmptinessTime / maxTime
 end
 
 using Profile
 #@profile simulateMarkov(150)
 
-println(simulateMarkov(150))
+function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
+    summedEmptiness = [0. for _ in 1:5]
+    for i in 1:numberOfRuns
+        summedEmptiness += simulateMarkov(maxTime, false)
+    end
+    return summedEmptiness/numberOfRuns
+
+end
+
+
+nruns = 10
+meanRuns = 10000
+timeLength = 150
+emptinessMatrix = [[] for _ in 1:nruns]
+for i in 1:nruns
+    global emptinessMatrix[i] =meanSimulateMarkov(meanRuns, timeLength)
+end
+#println(emptinessMatrix)
+
+# Store and display biggest difference
+biggestDiff = [0. for _ in 1:5]
+for station in 1:5
+    for firstRun in 1:nruns
+        for secondRun in 1:nruns
+            difference = abs(emptinessMatrix[firstRun][station] - emptinessMatrix[secondRun][station])
+            if difference > biggestDiff[station]
+                global biggestDiff[station] = difference
+            end
+        end
+    end
+end
+println(biggestDiff)
+
+"""
+Comparaison de dix runs sur 150 heures en fonction du nombre de runs moyennées
+si 10 runs : en gros de l'ordre de 5%
+si 100 runs : en gros de l'ordre de 1,5% (1,6 à 2% avec 20 runs de 100 moyennées)
+si 1000 runs : en gros de l'ordre de 0.4 à 0.5%
+si 10000 runs : en gros reste de l'ordre de 0.4 à 0.5%
+
+Comparaison de dix runs sur 1500 heures en fonctions du nombre de runs moyennées
+si 10 runs : en gros de l'ordre de 1.6 à 2.3%
+si 100 runs : en gros de l'ordre de 0.5% à 1%
+"""
