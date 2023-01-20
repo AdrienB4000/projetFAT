@@ -19,8 +19,8 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    #data = readData("data_50uniform.txt")
-    data = readData("data_1.txt")
+    data = readData("data_50uniform.txt")
+    #data = readData("data_1.txt")
     state = initState(data)
     events = vcat([i for i in 1:data.nbSt], [(i, j) for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
     
@@ -239,8 +239,16 @@ function simulateMarkovWithUselessEvents(maxTime::Int, verbose::Bool=true)::Vect
     return stationEmptinessTime / maxTime
 end
 
+function simulationMeanTime(nRuns::Int, runLenght::Int)::Float64
+    runTime = 0
+    for i in 1:nRuns
+        start = time()
+        a= simulateMarkov(runLenght, false)
+        runTime += time() - start
+    end
+    return round(runTime/nRuns, digits=6)
+end
 
-"""
 function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
     summedEmptiness = [0. for _ in 1:5]
     for i in 1:numberOfRuns
@@ -249,6 +257,9 @@ function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
     return summedEmptiness/numberOfRuns
 
 end
+
+"""
+
 
 nruns = 10
 meanRuns = 10000
