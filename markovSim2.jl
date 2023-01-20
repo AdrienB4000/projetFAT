@@ -51,6 +51,7 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
     stationEmptinessTime = [0. for _ in 1:data.nbSt]
 
     nbEventsProcessed = 0
+    arrivalsAtStation = 0
     while nextTime < maxTime
         nbEventsProcessed += 1
 
@@ -63,6 +64,7 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
 
         event = sample(events, Weights(lambdas))
         if typeof(event) == Int64
+            arrivalsAtStation += 1
             # Here the event is that a customer arrives at a station
             source = event
             destination = sample(data.allSt, Weights(data.routage[event, :]))
@@ -112,6 +114,7 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
     if verbose
         println("Simulation ran for " * string(maxTime) * " hours")
         println(nbEventsProcessed, " events processed")
+        println(arrivalsAtStation, " arrivals at station")
     end
 
     return stationEmptinessTime / maxTime
