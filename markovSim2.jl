@@ -19,8 +19,8 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
         - part of the total time where each station was empty when a customer arrived.
     """
 
-    data = readData("data_50uniform.txt")
-    #data = readData("data_1.txt")
+    #data = readData("data_50uniform.txt")
+    data = readData("data_1.txt")
     state = initState(data)
     events = vcat([i for i in 1:data.nbSt], [(i, j) for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
     
@@ -117,9 +117,127 @@ function simulateMarkov(maxTime::Int, verbose::Bool=true)::Vector{Float64}
     return stationEmptinessTime / maxTime
 end
 
-using Profile
-#@profile simulateMarkov(150)
+function simulateMarkovWithUselessEvents(maxTime::Int, verbose::Bool=true)::Vector{Float64}
+    """
+    Returns:
+        - part of the total time where each station was empty when a customer arrived.
+    """
 
+    #data = readData("data_50uniform.txt")
+    data = readData("data_1.txt")
+    state = initState(data)
+    events = vcat([i for i in 1:data.nbSt], [(i, j) for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
+    
+    # Gamma is 1/lambda where lambda is the parameter of the exponential law.
+    unitaryLambdas = vcat(data.lambdas, [1/data.travelTime[i, j] for i in 1:data.nbSt for j in 1:data.nbSt if i!=j])
+    
+    lambdas = [0. for i in 1:length(unitaryLambdas)]
+    for i in 1:length(unitaryLambdas)
+        if i <= 5
+            lambdas[i] = unitaryLambdas[i]
+            """
+            if data.initialParked[i] == 0
+                lambdas[i] = 0
+            else
+                lambdas[i] = unitaryLambdas[i]
+            end
+            """
+        else
+            if data.initialTransit[i - 5] == 0
+                lambdas[i] = 0
+            else
+                lambdas[i] = unitaryLambdas[i] * data.initialTransit[i - 5]
+            end
+        end
+    end
+
+    lambdasSum = sum(lambdas)
+
+    currentTime = 0
+    nextTime = min(exponentialLaw(lambdasSum), maxTime)
+    stationEmptinessTime = [0. for _ in 1:data.nbSt]
+
+    nbEventsProcessed = 0
+    arrivalsAtStation = 0
+    while nextTime < maxTime
+        nbEventsProcessed += 1
+
+        # Store the amount of time where the station remained empty.
+        for st in 1:data.nbSt
+            if state.parkedBicycles[st] == 0
+                stationEmptinessTime[st] += nextTime - currentTime
+            end
+        end
+
+        event = sample(events, Weights(lambdas))
+        if typeof(event) == Int64
+            arrivalsAtStation +=1
+            if state.parkedBicycles[event] == 0
+                currentTime = nextTime
+                nextTime = min(currentTime + exponentialLaw(lambdasSum), maxTime)
+                continue
+            end
+            # Here the event is that a customer arrives at a station
+            source = event
+            destination = sample(data.allSt, Weights(data.routage[event, :]))
+            takeOneFromIToJ(state, source, destination)
+
+            route_colony = route_colony_from_source_and_dest(source, destination)
+            # Update lambda for the route
+            lambdas[route_colony] += unitaryLambdas[route_colony]
+            lambdasSum += unitaryLambdas[route_colony]
+
+            # If last customer of station, event becomes impossible
+            """
+            if state.parkedBicycles[event] == 0
+                lambdasSum -= unitaryLambdas[event]
+                lambdas[event] = 0
+            end
+            """
+
+        elseif typeof(event) == Tuple{Int64, Int64}
+            # Here the event is that a customer finishes is travel from i to j
+            source = event[1]
+            destination = event[2]
+            # First route from the source
+            route_colony = route_colony_from_source_and_dest(source, destination)
+            arriveFromIAtJ(state, source, destination)
+            # Reduce lambda for route
+            lambdas[route_colony] -= unitaryLambdas[route_colony]
+            lambdasSum -= unitaryLambdas[route_colony]
+
+            # If station was empty but isn't anymore
+            """
+            if state.parkedBicycles[destination] ==1
+                lambdasSum += unitaryLambdas[destination]
+                lambdas[destination] = unitaryLambdas[destination]
+            end
+            """
+        else
+            println("Big problem here")
+        end
+
+        currentTime = nextTime
+        nextTime = min(currentTime + exponentialLaw(lambdasSum), maxTime)
+    end
+    # We finish the simulation between currentTime and maxTime
+    for st in 1:data.nbSt
+        if state.parkedBicycles[st] == 0
+            stationEmptinessTime[st] += maxTime - currentTime
+        end
+    end
+
+    if verbose
+        println("Simulation ran for " * string(maxTime) * " hours")
+        println(nbEventsProcessed, " events processed")
+        println(arrivalsAtStation, " arrivals at station")
+    end
+
+    return stationEmptinessTime / maxTime
+end
+
+
+"""
 function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
     summedEmptiness = [0. for _ in 1:5]
     for i in 1:numberOfRuns
@@ -128,8 +246,6 @@ function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
     return summedEmptiness/numberOfRuns
 
 end
-
-"""
 
 nruns = 10
 meanRuns = 10000
