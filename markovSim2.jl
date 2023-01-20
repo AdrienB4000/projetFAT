@@ -129,6 +129,7 @@ function meanSimulateMarkov(numberOfRuns::Int, maxTime::Int)::Vector{Float64}
 
 end
 
+"""
 
 nruns = 10
 meanRuns = 10000
@@ -152,6 +153,7 @@ for station in 1:5
     end
 end
 println(biggestDiff)
+"""
 
 """
 Comparaison de dix runs sur 150 heures en fonction du nombre de runs moyennées
